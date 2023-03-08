@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+	<style>
+		h1 span {
+			font-size: 0.6em;
+		}
+
+		body{
+			background-image: url(./images/cloud.jpg);
+			background-size: 120%;
+		}
+
+		.wrapper {
+			display: flex;
+			margin-right: 20px;
+			overflow: hidden;
+		}
+		.types {
+			width: 50%;
+		}
+		.control {
+			margin-right: 70px;
+		}
+
+		.compass-container h3{
+			flex-basis: 70%;
+		}
+
+		.compass {
+			position: relative;
+			width: 400px;
+			height: 400px;
+			border-radius: 50%;
+			overflow: hidden;
+			background-image: url("compass.png");
+			background-size: 100% 100%;
+		}
+
+		.arrow {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 2px;
+			height: 200px;
+			background-color: red;
+			transform-origin: bottom;
+			transition: transform 0.5s;
+		}
+
+	</style>
+
+	<head>
+		<title>RoundSlider - A sample demo</title>
+		<script src="jquery-1.11.3.min.js"></script>
+		<link href="roundslider.min.css" rel="stylesheet" />
+		<script src="roundslider.min.js"></script>
+
+
+	</head>
+
+
+<body style="padding: 10px 0 0 20px; font-family: monospace;" >
+	<div class="wrapper">
+		<div class="types">
+    	<h3>Steering wheel</h3>
+      <div class="container">
+        <div class="control">
+					<div id="rd_slider_1"></div> <br/>
+					change :
+					<div id="range">
+          </div>
+  				<input id="box1" value="00" /> <br/>
+					<input id="box2" value="00" />
+				</div>
+			</div>
+
+
+
+		<div >
+			<h3>Drive</h3>
+				<div>
+					<span id="drive_distance"><b>0</b> cm</span>
+					<button onclick="changeMovementDistance(1)">+</button>
+					<button onclick="changeMovementDistance(-1)">-</button>
+					<br />
+					<button onclick="moveForward()">Forward</button>
+					<button onclick="moveBackward()">Backward</button>
+				</div>
+
+			<br/>
+				<button onclick="FRW5()">Forward <b>5</b> cm</button>
+				<button onclick="FRW1()">Forward <b>1</b> cm</button>
+			<br/>
+			<br/>
+				<button onclick="RET1()">Backward <b>1</b> cm</button>
+				<button onclick="RET5()">Backward <b>5</b> cm</button>
+
+			<p with id="demo"></p>
+		</div>
+
+		<h3>Values</h3>
+		<div>
+			<span class="sensor-labels">Distance: </span>
+			<span id="Box_lidar_dist">%Dist%</span>
+			<sup class="units">cm</sup>
+			<br>
+			<span class="sensor-labels">Compass: </span>
+			<span id="Box_compass_value">%Degree%</span>
+			<sup class="units">o</sup>C
+		</div>
+
+
+
+	</div>
+	<div class="compass-container">
+		<h3>Compass</h3>
+		<div class="compass">
+			<div class="arrow"></div>
+		</div>
+	</div>
+
+
+
+
+
+	<script type="text/javascript">
+
+//////////////////////////////////////////////////////////// JS start /////////////////////
+
+
+	var From_Mega=0;								// string variable from server/mega
+
+	var lidarDistance=0;							// Lidar distance
+	var compassValue=0;								// Compass value
+
+	var dire=0;										// direction
+	var dist=0;										// distance
+	var mode=0;										// mode 1 = direction value 2=distance vale
+
+
+	var valx = document.getElementById("rd_slider_1").value;	// roundslider variable
+
+	// timer inreval function
+	setInterval(function () {
+		var xhttp = new XMLHttpRequest();
+
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				//From_Mega=parseInt(this.responseText);								//  input string from server c++/Mega
+				From_Mega = JSON.parse(this.responseText);
+				lidarDistance = From_Mega.lidar;
+				compassValue = From_Mega.compass;
+				document.getElementById("Box_lidar_dist").innerHTML = lidarDistance;
+				document.getElementById("Box_compass_value").innerHTML = compassValue;
+			}
+		};
+
+		xhttp.open("GET", "/from_MEGA", true);	// request string from server
+
+		xhttp.send();
+
+	}, 500);	// Interval time 0.5 Sec
+
+	// HTTP GET to send stw or drive values to C++
+  	function httpGetAsync(callback) {
+		var xmlHttp = new XMLHttpRequest();
+
+		xmlHttp.onreadystatechange = function() {
+			if (xmlHttp.readyState == 4 && xmlHttp.status == 200) callback(xmlHttp.responseText);
+		}
+
+		if (mode==1) xmlHttp.open("GET",'/?dire='+dire, true); 			// send direction  TAG "dire"	true for asynchronous
+		if (mode==2) {  xmlHttp.open("GET",'/?dist='+dist, true); };	// send distance   TAG "dist"	true for asynchronous
+		xmlHttp.send(null);
+	}
+
+	// empty func
+	function tryme(param1) {}
+
+	$(document).ready(function ()								// ready start
+	{
+		$("#rd_slider_1").roundSlider							// define roundslider in JS
+		(
+			{
+				radius: 85,
+				min: -180,
+				max: 180,
+				circleShape: "pie",
+				sliderType: "min-range",
+				value: 0,
+				startAngle: 315,
+
+				change: function(args) {
+					dire=args.value;		// direction variable set
+					send_srw_val(dire);		// call type_sl_val
+				}
+			}
+		);
+	});		// ready ends
+
+	// Manual set distance
+	function changeMovementDistance(value) {
+		var currentValue = Number.parseInt(document.getElementById("drive_distance").innerText);
+		if (currentValue === 0 && value === -1) return;
+		document.getElementById("drive_distance").innerHTML = `<b>${currentValue + value}</b> cm`;
+	}
+
+	function moveForward() {
+		var value = Number.parseInt(document.getElementById("drive_distance").innerText);
+		document.getElementById("box1").value = `Forw ${value} cm`;
+		mode=2;
+		dist=value;
+		httpGetAsync(tryme);
+	}
+
+	function moveBackward() {
+		var value = Number.parseInt(document.getElementById("drive_distance").innerText);
+		document.getElementById("box1").value = `Ret ${value} cm`;
+		mode=2;
+		dist=-1 * value;
+		httpGetAsync(tryme);
+	}
+
+	// send stw value
+	function send_srw_val(val) {
+		mode=1;	 				// Steering wheel = mode 1
+		httpGetAsync(tryme);
+	}
+
+	function FRW5() {
+		mode=2;					// drive motors = mode 2
+		dist=5; 				// drive distance
+		httpGetAsync(tryme);
+	}
+
+	function RET5() {
+		mode=2;
+		dist=-5;
+		httpGetAsync(tryme);
+	}
+
+ 	function FRW1() {
+		mode=2;
+		dist=1;
+		httpGetAsync(tryme);
+	}
+
+	function RET1() {
+		mode=2;
+		dist=-1;
+		httpGetAsync(tryme);
+	}
+
+///////////////////////////////////////////// JS END
+
+    </script>
+
+</body>
+</html>
