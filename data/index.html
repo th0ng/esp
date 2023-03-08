@@ -252,6 +252,15 @@
 		httpGetAsync(tryme);
 	}
 
+	window.addEventListener('deviceorientation', function(event) {
+		let alpha = event.alpha;
+		if (alpha !== null) {
+			let arrow = document.querySelector('.arrow');
+			arrow.style.transform = 'rotate(' + alpha + 'deg)';
+		}
+	});
+
+
 ///////////////////////////////////////////// JS END
 
     </script>
